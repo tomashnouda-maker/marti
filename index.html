@@ -16,6 +16,7 @@
         .loader { border-top-color: #2563eb; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { backdrop-filter: blur(5px); }
+        .student-badge { background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -76,7 +77,7 @@
                 <table class="w-full text-right">
                     <thead class="bg-gray-50 border-b">
                         <tr>
-                            <th class="p-4">اسم الطالب</th>
+                            <th class="p-4">اسم الطالب / الكود</th>
                             <th class="p-4 text-center">الحالة</th>
                             <th class="p-4">التوقيت</th>
                         </tr>
@@ -106,7 +107,7 @@
                 <div class="bg-gray-50 rounded-2xl overflow-hidden">
                     <table class="w-full text-right">
                         <thead class="bg-gray-100">
-                            <tr><th class="p-4">اسم الطالب</th><th class="p-4 text-center">الدرجة</th></tr>
+                            <tr><th class="p-4">اسم الطالب / الكود</th><th class="p-4 text-center">الدرجة</th></tr>
                         </thead>
                         <tbody id="exam-list" class="divide-y divide-gray-200"></tbody>
                     </table>
@@ -125,7 +126,7 @@
                 <table class="w-full text-right">
                     <thead class="bg-gray-50 border-b">
                         <tr>
-                            <th class="p-4">اسم الطالب</th>
+                            <th class="p-4">اسم الطالب / الكود</th>
                             <th class="p-4 text-center">الإجراء</th>
                         </tr>
                     </thead>
@@ -136,19 +137,33 @@
 
         <!-- System Settings -->
         <div class="mt-20 border-t pt-10">
-            <button onclick="toggleSettings()" class="text-blue-600 font-bold flex items-center gap-2 mb-6">⚙️ إعدادات الفصل والطلاب</button>
-            <div id="settings-area" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 pb-20">
-                <div class="bg-white p-6 rounded-2xl shadow-sm">
-                    <h4 class="font-bold mb-4">إنشاء فصل جديد</h4>
+            <button onclick="toggleSettings()" class="text-blue-600 font-bold flex items-center gap-2 mb-6 bg-blue-50 px-6 py-3 rounded-2xl">⚙️ إعدادات الفصول والطلاب</button>
+            
+            <div id="settings-area" class="hidden space-y-8 pb-20">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h4 class="font-bold mb-4 flex items-center gap-2">🏫 إنشاء فصل جديد</h4>
                     <div class="flex gap-2">
-                        <input type="text" id="new-class" placeholder="اسم الفصل..." class="flex-1 bg-gray-50 p-3 rounded-xl border outline-none">
-                        <button onclick="addClass()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">إضافة</button>
+                        <input type="text" id="new-class" placeholder="مثلاً: أولى أول..." class="flex-1 bg-gray-50 p-4 rounded-xl border-none outline-none focus:ring-2 ring-blue-400">
+                        <button onclick="addClass()" class="bg-blue-600 text-white px-8 rounded-xl font-bold hover:bg-blue-700">إضافة الفصل</button>
                     </div>
                 </div>
-                <div class="bg-blue-900 p-6 rounded-2xl shadow-sm text-white text-center">
-                    <h4 class="font-bold mb-4">رفع كشف الفصل (Excel)</h4>
-                    <input type="file" id="excel-in" class="hidden" accept=".xlsx, .xls">
-                    <button onclick="document.getElementById('excel-in').click()" class="bg-white text-blue-900 px-8 py-3 rounded-xl font-bold">اختيار ملف</button>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="manual-student-box" class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-blue-500">
+                        <h4 class="font-bold mb-4">👤 إضافة طالب يدوياً</h4>
+                        <p id="class-warning" class="text-xs text-red-500 mb-2">يرجى اختيار فصل من القائمة أولاً</p>
+                        <div class="space-y-3">
+                            <input type="text" id="manual-student-name" placeholder="اسم الطالب بالكامل..." class="w-full bg-gray-50 p-4 rounded-xl border-none outline-none focus:ring-2 ring-blue-400" disabled>
+                            <button onclick="addStudentManual()" id="manual-add-btn" class="w-full bg-gray-200 text-gray-500 py-3 rounded-xl font-bold cursor-not-allowed" disabled>إضافة الطالب وتوليد كود</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-900 p-6 rounded-2xl shadow-sm text-white flex flex-col justify-center items-center text-center">
+                        <h4 class="font-bold mb-4">📊 رفع كشف الفصل (Excel)</h4>
+                        <input type="file" id="excel-in" class="hidden" accept=".xlsx, .xls">
+                        <button onclick="document.getElementById('excel-in').click()" class="bg-white text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-gray-100">اختيار ملف إكسيل</button>
+                        <p class="text-[10px] mt-2 opacity-50 px-4">يجب أن يحتوي الملف على عمود باسم "الاسم" أو "Name"</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,9 +179,7 @@
                 </div>
                 <button onclick="closeGradesModal()" class="text-2xl text-gray-400 hover:text-red-500">✕</button>
             </div>
-            <div id="modal-content" class="flex-1 overflow-y-auto p-6 space-y-4">
-                <!-- Records will be injected here -->
-            </div>
+            <div id="modal-content" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
         </div>
     </div>
 
@@ -188,7 +201,7 @@
         async function init() {
             const classes = await firebase('classes');
             const sel = document.getElementById('class-select');
-            if(classes) Object.keys(classes).forEach(c => {
+            if(classes) Object.keys(classes).sort().forEach(c => {
                 const o = document.createElement('option');
                 o.value = c; o.innerText = c; sel.appendChild(o);
             });
@@ -196,21 +209,38 @@
 
         function onClassChange() {
             currentClass = document.getElementById('class-select').value;
+            const manualInp = document.getElementById('manual-student-name');
+            const manualBtn = document.getElementById('manual-add-btn');
+            const warning = document.getElementById('class-warning');
+
             if(currentClass) {
                 document.getElementById('welcome-msg').classList.add('hidden');
                 document.getElementById('main-actions').classList.remove('hidden');
+                manualInp.disabled = false;
+                manualBtn.disabled = false;
+                manualBtn.classList.replace('bg-gray-200', 'bg-blue-600');
+                manualBtn.classList.replace('text-gray-500', 'text-white');
+                manualBtn.classList.remove('cursor-not-allowed');
+                warning.classList.add('hidden');
                 backToMain();
             } else {
                 document.getElementById('welcome-msg').classList.remove('hidden');
                 document.getElementById('main-actions').classList.add('hidden');
+                manualInp.disabled = true;
+                manualBtn.disabled = true;
+                manualBtn.classList.replace('bg-blue-600', 'bg-gray-200');
+                manualBtn.classList.replace('text-white', 'text-gray-500');
+                manualBtn.classList.add('cursor-not-allowed');
+                warning.classList.remove('hidden');
             }
         }
 
         function setMode(mode) {
             document.getElementById('main-actions').classList.add('hidden');
             document.querySelectorAll('[id^="mode-"]').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`mode-${mode}`).classList.remove('hidden');
-            document.getElementById(`mode-${mode}`).classList.add('active-mode');
+            const target = document.getElementById(`mode-${mode}`);
+            target.classList.remove('hidden');
+            target.classList.add('active-mode');
             
             if(mode === 'attendance') loadAttendance();
             if(mode === 'exams') loadExams();
@@ -225,7 +255,17 @@
             });
         }
 
-        // --- Attendance Logic ---
+        async function addStudentManual() {
+            const nameInp = document.getElementById('manual-student-name');
+            const name = nameInp.value.trim();
+            if(!name) return alert("يرجى إدخال اسم الطالب");
+            const code = 'T' + Math.floor(Math.random() * 90000 + 10000);
+            await firebase(`students/${currentClass}`, 'POST', { name, code, createdAt: Date.now() });
+            alert(`تم إضافة الطالب: ${name}\nبنجاح، الكود هو: ${code}`);
+            nameInp.value = "";
+        }
+
+        // --- Attendance ---
         async function loadAttendance() {
             const students = await firebase(`students/${currentClass}`);
             const list = document.getElementById('att-list');
@@ -234,10 +274,13 @@
             Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="p-4 font-bold text-gray-700">${s.name}</td>
+                    <td class="p-4">
+                        <div class="font-bold text-gray-700">${s.name}</div>
+                        <span class="student-badge">${s.code || '---'}</span>
+                    </td>
                     <td class="p-4 flex justify-center gap-2">
-                        <button onclick="markAtt('${id}', 'حاضر')" class="bg-green-500 text-white px-4 py-1 rounded-lg text-sm">حضور</button>
-                        <button onclick="markAtt('${id}', 'غائب')" class="bg-red-500 text-white px-4 py-1 rounded-lg text-sm">غياب</button>
+                        <button onclick="markAtt('${id}', 'حاضر')" class="bg-green-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-green-600">حضور</button>
+                        <button onclick="markAtt('${id}', 'غائب')" class="bg-red-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-red-600">غياب</button>
                     </td>
                     <td id="stat-${id}" class="p-4 text-xs font-bold text-gray-400">${s.lastStatus || 'لم يسجل'}</td>
                 `;
@@ -252,7 +295,7 @@
             document.getElementById(`stat-${id}`).innerText = `${status} - ${time}`;
         }
 
-        // --- Exams Logic ---
+        // --- Exams ---
         async function loadExams() {
             const students = await firebase(`students/${currentClass}`);
             const list = document.getElementById('exam-list');
@@ -260,7 +303,15 @@
             if(!students) return;
             Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="p-4 font-bold">${s.name}</td><td class="p-4"><input type="number" data-sid="${id}" class="exam-val w-full bg-white border rounded-xl p-2 text-center" placeholder="0"></td>`;
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold">${s.name}</div>
+                        <span class="student-badge">${s.code || '---'}</span>
+                    </td>
+                    <td class="p-4">
+                        <input type="number" data-sid="${id}" class="exam-val w-full bg-white border rounded-xl p-2 text-center" placeholder="0">
+                    </td>
+                `;
                 list.appendChild(tr);
             });
         }
@@ -268,7 +319,7 @@
         async function saveExamsAction() {
             const name = document.getElementById('exam-name').value.trim();
             const max = document.getElementById('exam-max').value;
-            if(!name) return alert("يرجى كتابة اسم الامتحان");
+            if(!name) return alert("اكتب اسم الامتحان");
             const inputs = document.querySelectorAll('.exam-val');
             for(let i of inputs) {
                 const sid = i.dataset.sid;
@@ -276,11 +327,11 @@
                 await firebase(`exams/${currentClass}/${sid}`, 'POST', { title: name, score, total: max, date: new Date().toLocaleDateString('ar-EG') });
                 await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${score} / ${max}`);
             }
-            alert("تم الحفظ بنجاح ✅");
+            alert("تم الحفظ بنجاح");
             backToMain();
         }
 
-        // --- Edit Grades Logic ---
+        // --- Edit Grades ---
         async function loadStudentsForEdit() {
             const students = await firebase(`students/${currentClass}`);
             const list = document.getElementById('edit-students-list');
@@ -289,23 +340,25 @@
             Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="p-4 font-bold text-gray-700">${s.name}</td>
+                    <td class="p-4">
+                        <div class="font-bold text-gray-700">${s.name}</div>
+                        <span class="student-badge">${s.code || '---'}</span>
+                    </td>
                     <td class="p-4 text-center">
-                        <button onclick="viewStudentGrades('${id}', '${s.name}')" class="bg-blue-100 text-blue-700 px-6 py-2 rounded-xl font-bold hover:bg-blue-200">عرض الدرجات</button>
+                        <button onclick="viewStudentGrades('${id}', '${s.name} (${s.code})')" class="bg-blue-100 text-blue-700 px-6 py-2 rounded-xl font-bold hover:bg-blue-200">عرض الدرجات</button>
                     </td>
                 `;
                 list.appendChild(tr);
             });
         }
 
-        async function viewStudentGrades(sid, name) {
-            document.getElementById('modal-student-name').innerText = name;
+        async function viewStudentGrades(sid, nameWithCode) {
+            document.getElementById('modal-student-name').innerText = nameWithCode;
             const exams = await firebase(`exams/${currentClass}/${sid}`);
             const content = document.getElementById('modal-content');
             content.innerHTML = "";
-            
             if(!exams) {
-                content.innerHTML = "<p class='text-center text-gray-400 py-10'>لا يوجد درجات مسجلة لهذا الطالب</p>";
+                content.innerHTML = "<p class='text-center text-gray-400 py-10'>لا يوجد درجات مسجلة</p>";
             } else {
                 Object.entries(exams).forEach(([eid, e]) => {
                     const row = document.createElement('div');
@@ -318,8 +371,7 @@
                         <div class="flex items-center gap-3">
                             <div class="bg-white px-4 py-2 rounded-xl border-2 border-blue-100">
                                 <input id="inp-${eid}" type="number" value="${e.score}" class="w-12 text-center font-bold text-blue-600 bg-transparent outline-none" disabled>
-                                <span class="text-gray-300 mx-1">/</span>
-                                <span class="text-gray-400">${e.total}</span>
+                                <span class="text-gray-300 mx-1">/</span> <span class="text-gray-400">${e.total}</span>
                             </div>
                             <button id="btn-edit-${eid}" onclick="enableEdit('${eid}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">✏️</button>
                             <button id="btn-save-${eid}" onclick="saveEdit('${sid}', '${eid}', ${e.total})" class="hidden p-2 text-green-500 hover:bg-green-50 rounded-lg">✔️</button>
@@ -341,20 +393,14 @@
         async function saveEdit(sid, eid, total) {
             const newScore = document.getElementById(`inp-${eid}`).value;
             await firebase(`exams/${currentClass}/${sid}/${eid}/score`, 'PUT', newScore);
-            // تحديث آخر درجة في ملف الطالب الرئيسي أيضاً
             await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${newScore} / ${total}`);
-            
             document.getElementById(`inp-${eid}`).disabled = true;
             document.getElementById(`btn-edit-${eid}`).classList.remove('hidden');
             document.getElementById(`btn-save-${eid}`).classList.add('hidden');
-            alert("تم التعديل بنجاح ✅");
+            alert("تم التعديل");
         }
 
-        function closeGradesModal() {
-            document.getElementById('grades-modal').classList.add('hidden');
-        }
-
-        // Settings
+        function closeGradesModal() { document.getElementById('grades-modal').classList.add('hidden'); }
         function toggleSettings() { document.getElementById('settings-area').classList.toggle('hidden'); }
         async function addClass() {
             const n = document.getElementById('new-class').value.trim();
@@ -374,7 +420,7 @@
                     const n = r['الأسم'] || r['الاسم'] || r['Name'];
                     if(n) await firebase(`students/${currentClass}`, 'POST', { name: n, code: 'T'+Math.floor(Math.random()*90000+10000) });
                 }
-                alert("تم استيراد الطلاب بنجاح");
+                alert("تم الاستيراد بنجاح");
                 onClassChange();
             };
             reader.readAsArrayBuffer(e.target.files[0]);
