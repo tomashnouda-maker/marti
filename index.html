@@ -15,202 +15,157 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .loader { border-top-color: #2563eb; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        
-        /* Login Overlay Styling */
-        #login-overlay {
-            position: fixed;
-            inset: 0;
-            background: #f4f6f9;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .modal { backdrop-filter: blur(5px); }
     </style>
 </head>
 <body class="text-gray-800">
 
-    <!-- Login Screen -->
-    <div id="login-overlay">
-        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-gray-100 text-center">
-            <div class="text-6xl mb-6">🔐</div>
-            <h2 class="text-2xl font-black text-blue-800 mb-2">تسجيل دخول المدير</h2>
-            <p class="text-gray-400 mb-8 text-sm">يرجى إدخال بيانات الاعتماد للوصول للوحة التحكم</p>
-            
-            <div class="space-y-4 text-right">
-                <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-1 mr-2">اسم المستخدم</label>
-                    <input type="text" id="login-user" class="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all">
+    <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
+        <div class="loader rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+    </div>
+
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-md p-4 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-black text-blue-700 flex items-center gap-2">
+                <span class="bg-blue-600 text-white p-2 rounded-lg text-sm">ADMIN</span>
+                لوحة تحكم المدير
+            </h1>
+            <div class="flex items-center gap-4">
+                <select id="class-select" onchange="onClassChange()" class="bg-gray-100 border-2 border-gray-200 rounded-xl px-4 py-2 font-bold text-blue-800 outline-none focus:border-blue-500">
+                    <option value="">-- اختر الفصل أولاً --</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto p-6 mt-4">
+        
+        <!-- Welcome Screen -->
+        <div id="welcome-msg" class="text-center py-20 bg-white rounded-[2.5rem] shadow-sm border border-dashed border-gray-300">
+            <div class="text-6xl mb-4">🏫</div>
+            <h2 class="text-2xl font-bold text-gray-400">يرجى اختيار فصل من القائمة بالأعلى للبدء</h2>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <div id="main-actions" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <button onclick="setMode('attendance')" class="action-card bg-white p-8 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
+                <div class="text-5xl mb-4 text-green-500">📅</div>
+                <h3 class="text-xl font-black">أخذ الغياب والحضور</h3>
+                <p class="text-sm text-gray-400 mt-2">تسجيل حالة حضور الطلاب لتاريخ اليوم</p>
+            </button>
+            <button onclick="setMode('exams')" class="action-card bg-white p-8 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
+                <div class="text-5xl mb-4 text-orange-500">📝</div>
+                <h3 class="text-xl font-black">إضافة درجات امتحان</h3>
+                <p class="text-sm text-gray-400 mt-2">رصد درجات اختبار أو تقييم جديد للفصل</p>
+            </button>
+            <button onclick="setMode('edit-grades')" class="action-card bg-white p-8 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
+                <div class="text-5xl mb-4 text-blue-500">✏️</div>
+                <h3 class="text-xl font-black">تعديل الدرجات</h3>
+                <p class="text-sm text-gray-400 mt-2">مراجعة وتعديل درجات الطلاب المسجلة سابقاً</p>
+            </button>
+        </div>
+
+        <!-- Mode: Attendance -->
+        <div id="mode-attendance" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-6 rounded-3xl shadow-md border-r-8 border-green-500">
+                <h2 class="text-xl font-bold">رصد الحضور - بتاريخ اليوم</h2>
+                <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                <table class="w-full text-right">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="p-4">اسم الطالب</th>
+                            <th class="p-4 text-center">الحالة</th>
+                            <th class="p-4">التوقيت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="att-list" class="divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mode: Exams -->
+        <div id="mode-exams" class="hidden space-y-6">
+            <div class="bg-white p-8 rounded-3xl shadow-md border-r-8 border-orange-500 space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">رصد درجات امتحان جديد</h2>
+                    <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-1 mr-2">كلمة المرور</label>
-                    <input type="password" id="login-pass" class="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">اسم الامتحان</label>
+                        <input type="text" id="exam-name" placeholder="مثلاً: امتحان شهر أكتوبر" class="w-full bg-gray-50 border-2 border-transparent focus:border-orange-400 p-4 rounded-2xl outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">الدرجة النهائية</label>
+                        <input type="number" id="exam-max" value="100" class="w-full bg-gray-50 border-2 border-transparent focus:border-orange-400 p-4 rounded-2xl outline-none text-center">
+                    </div>
                 </div>
-                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all mt-4">
-                    دخول النظام
-                </button>
-                <p id="login-error" class="text-red-500 text-sm font-bold mt-2 text-center hidden">❌ البيانات المدخلة غير صحيحة</p>
+                <div class="bg-gray-50 rounded-2xl overflow-hidden">
+                    <table class="w-full text-right">
+                        <thead class="bg-gray-100">
+                            <tr><th class="p-4">اسم الطالب</th><th class="p-4 text-center">الدرجة</th></tr>
+                        </thead>
+                        <tbody id="exam-list" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <button onclick="saveExamsAction()" class="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-orange-100 hover:bg-orange-700">🚀 حفظ درجات الامتحان للجميع</button>
+            </div>
+        </div>
+
+        <!-- Mode: Edit Grades -->
+        <div id="mode-edit-grades" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-6 rounded-3xl shadow-md border-r-8 border-blue-500">
+                <h2 class="text-xl font-bold">تعديل الدرجات المسجلة</h2>
+                <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                <table class="w-full text-right">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="p-4">اسم الطالب</th>
+                            <th class="p-4 text-center">الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="edit-students-list" class="divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- System Settings -->
+        <div class="mt-20 border-t pt-10">
+            <button onclick="toggleSettings()" class="text-blue-600 font-bold flex items-center gap-2 mb-6">⚙️ إعدادات الفصل والطلاب</button>
+            <div id="settings-area" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 pb-20">
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <h4 class="font-bold mb-4">إنشاء فصل جديد</h4>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-class" placeholder="اسم الفصل..." class="flex-1 bg-gray-50 p-3 rounded-xl border outline-none">
+                        <button onclick="addClass()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">إضافة</button>
+                    </div>
+                </div>
+                <div class="bg-blue-900 p-6 rounded-2xl shadow-sm text-white text-center">
+                    <h4 class="font-bold mb-4">رفع كشف الفصل (Excel)</h4>
+                    <input type="file" id="excel-in" class="hidden" accept=".xlsx, .xls">
+                    <button onclick="document.getElementById('excel-in').click()" class="bg-white text-blue-900 px-8 py-3 rounded-xl font-bold">اختيار ملف</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content App (Hidden until login) -->
-    <div id="app-content" class="hidden">
-        <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
-            <div class="loader rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
-        </div>
-
-        <!-- Top Navigation -->
-        <nav class="bg-white shadow-md p-4 sticky top-0 z-40">
-            <div class="max-w-6xl mx-auto flex justify-between items-center">
-                <h1 class="text-xl font-black text-blue-700 flex items-center gap-2">
-                    <span class="bg-blue-600 text-white p-2 rounded-lg text-sm">ADMIN</span>
-                    لوحة تحكم المدير
-                </h1>
-                <div class="flex items-center gap-4">
-                    <select id="class-select" onchange="onClassChange()" class="bg-gray-100 border-2 border-gray-200 rounded-xl px-4 py-2 font-bold text-blue-800 outline-none focus:border-blue-500">
-                        <option value="">-- اختر الفصل أولاً --</option>
-                    </select>
-                    <button onclick="logout()" class="text-xs bg-red-50 text-red-500 p-2 rounded-lg font-bold">خروج</button>
+    <!-- Grades Modal -->
+    <div id="grades-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4 modal">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-6 border-b flex justify-between items-center bg-gray-50">
+                <div>
+                    <h3 id="modal-student-name" class="text-xl font-black text-blue-700">اسم الطالب</h3>
+                    <p class="text-sm text-gray-400">سجل الدرجات الكامل</p>
                 </div>
+                <button onclick="closeGradesModal()" class="text-2xl text-gray-400 hover:text-red-500">✕</button>
             </div>
-        </nav>
-
-        <div class="max-w-6xl mx-auto p-6 mt-4">
-            
-            <!-- Welcome Screen -->
-            <div id="welcome-msg" class="text-center py-20 bg-white rounded-[2.5rem] shadow-sm border border-dashed border-gray-300">
-                <div class="text-6xl mb-4">🏫</div>
-                <h2 class="text-2xl font-bold text-gray-400">يرجى اختيار فصل من القائمة بالأعلى للبدء</h2>
-            </div>
-
-            <!-- Main Action Buttons -->
-            <div id="main-actions" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                <div onclick="setMode('attendance')" class="action-card bg-white p-6 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
-                    <div class="text-5xl mb-4 text-green-500">📅</div>
-                    <h3 class="text-xl font-black">الغياب والحضور</h3>
-                    <p class="text-sm text-gray-400 mt-2">تسجيل حالة حضور الطلاب اليوم</p>
-                </div>
-                <div onclick="setMode('exams')" class="action-card bg-white p-6 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
-                    <div class="text-5xl mb-4 text-orange-500">📝</div>
-                    <h3 class="text-xl font-black">رصد درجات جديد</h3>
-                    <p class="text-sm text-gray-400 mt-2">إضافة امتحان أو تقييم جديد</p>
-                </div>
-                <div onclick="setMode('edit-grades')" class="action-card bg-white p-6 rounded-[2rem] shadow-lg flex flex-col items-center text-center">
-                    <div class="text-5xl mb-4 text-blue-500">✏️</div>
-                    <h3 class="text-xl font-black">تعديل الدرجات</h3>
-                    <p class="text-sm text-gray-400 mt-2">مراجعة وتعديل الدرجات المرصودة</p>
-                </div>
-            </div>
-
-            <!-- Mode: Attendance -->
-            <div id="mode-attendance" class="hidden space-y-6">
-                <div class="flex justify-between items-center bg-white p-6 rounded-3xl shadow-md border-r-8 border-green-500">
-                    <h2 class="text-xl font-bold">رصد الحضور - بتاريخ اليوم</h2>
-                    <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
-                </div>
-                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
-                    <table class="w-full text-right border-collapse">
-                        <thead class="bg-gray-50 border-b">
-                            <tr>
-                                <th class="p-4">اسم الطالب</th>
-                                <th class="p-4 text-center">الحالة</th>
-                                <th class="p-4">التوقيت</th>
-                            </tr>
-                        </thead>
-                        <tbody id="att-list" class="divide-y divide-gray-50"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Mode: Exams -->
-            <div id="mode-exams" class="hidden space-y-6">
-                <div class="bg-white p-8 rounded-3xl shadow-md border-r-8 border-orange-500 space-y-6">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-xl font-bold">رصد درجات امتحان جديد</h2>
-                        <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-500 mb-2">اسم الامتحان</label>
-                            <input type="text" id="exam-name" placeholder="مثلاً: امتحان شهر أكتوبر" class="w-full bg-gray-50 border-2 border-transparent focus:border-orange-400 p-4 rounded-2xl outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-500 mb-2">الدرجة النهائية</label>
-                            <input type="number" id="exam-max" value="100" class="w-full bg-gray-50 border-2 border-transparent focus:border-orange-400 p-4 rounded-2xl outline-none transition-all text-center font-bold">
-                        </div>
-                    </div>
-                    
-                    <div class="pt-4 border-t">
-                        <div class="bg-gray-50 rounded-2xl overflow-hidden">
-                            <table class="w-full text-right">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="p-4">اسم الطالب</th>
-                                        <th class="p-4 text-center">الدرجة</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="exam-list" class="divide-y divide-gray-200"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <button onclick="saveExamsAction()" class="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-orange-100 hover:bg-orange-700 transition-all">
-                        🚀 حفظ درجات الامتحان للجميع
-                    </button>
-                </div>
-            </div>
-
-            <!-- Mode: Edit Grades -->
-            <div id="mode-edit-grades" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-3xl shadow-md border-r-8 border-blue-500 space-y-4">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-xl font-bold">مراجعة وتعديل الدرجات</h2>
-                        <button onclick="backToMain()" class="text-gray-400 font-bold">⬅️ العودة</button>
-                    </div>
-                    <div class="relative">
-                        <input type="text" id="edit-search" oninput="filterGrades()" placeholder="ابحث عن طالب أو امتحان..." class="w-full bg-gray-50 border-2 border-gray-100 p-4 pr-12 rounded-2xl outline-none focus:border-blue-400 transition-all">
-                        <span class="absolute right-4 top-4 text-xl">🔍</span>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-3xl shadow-xl overflow-x-auto">
-                    <table class="w-full text-right border-collapse min-w-[600px]">
-                        <thead class="bg-gray-100 text-gray-600 border-b">
-                            <tr>
-                                <th class="p-4">اسم الطالب</th>
-                                <th class="p-4">الامتحان</th>
-                                <th class="p-4 text-center">التاريخ</th>
-                                <th class="p-4 text-center">الدرجة / النهاية</th>
-                                <th class="p-4 text-center">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="edit-grades-list" class="divide-y divide-gray-100">
-                            <!-- Content loaded via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- System Settings -->
-            <div class="mt-20 border-t pt-10">
-                <button onclick="toggleSettings()" class="text-blue-600 font-bold flex items-center gap-2 mb-6">⚙️ إعدادات الفصل والطلاب</button>
-                <div id="settings-area" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 pb-20">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                        <h4 class="font-bold mb-4 text-gray-500">إنشاء فصل جديد</h4>
-                        <div class="flex gap-2">
-                            <input type="text" id="new-class" placeholder="اسم الفصل..." class="flex-1 bg-gray-50 p-3 rounded-xl border outline-none">
-                            <button onclick="addClass()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">إضافة</button>
-                        </div>
-                    </div>
-                    <div class="bg-blue-900 p-6 rounded-2xl shadow-sm text-white text-center">
-                        <h4 class="font-bold mb-4 opacity-80">رفع كشف الفصل (Excel)</h4>
-                        <input type="file" id="excel-in" class="hidden" accept=".xlsx, .xls">
-                        <button onclick="document.getElementById('excel-in').click()" class="bg-white text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-gray-100 transition-all">اختيار ملف</button>
-                    </div>
-                </div>
+            <div id="modal-content" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Records will be injected here -->
             </div>
         </div>
     </div>
@@ -218,76 +173,32 @@
     <script>
         const API_URL = "https://tomas-f73e9-default-rtdb.europe-west1.firebasedatabase.app/";
         let currentClass = "";
-        let allStudents = {};
-        let allExamsData = []; 
-
-        // --- AUTH LOGIC ---
-        function checkAuth() {
-            const isLogged = localStorage.getItem('isAdminLogged');
-            if (isLogged === 'true') {
-                document.getElementById('login-overlay').classList.add('hidden');
-                document.getElementById('app-content').classList.remove('hidden');
-                init();
-            }
-        }
-
-        function handleLogin() {
-            const user = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const errorMsg = document.getElementById('login-error');
-
-            if (user === 'admin' && pass === 'admin147') {
-                localStorage.setItem('isAdminLogged', 'true');
-                document.getElementById('login-overlay').classList.add('hidden');
-                document.getElementById('app-content').classList.remove('hidden');
-                errorMsg.classList.add('hidden');
-                init();
-            } else {
-                errorMsg.classList.remove('hidden');
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('isAdminLogged');
-            location.reload();
-        }
-
-        // --- ORIGINAL APP LOGIC ---
 
         async function firebase(path, method = 'GET', data = null) {
             document.getElementById('loader').classList.remove('hidden');
-            try {
-                const res = await fetch(`${API_URL}${path}.json`, {
-                    method, 
-                    body: data ? JSON.stringify(data) : null,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const json = await res.json();
-                return json;
-            } catch (e) {
-                console.error("Firebase Error:", e);
-                return null;
-            } finally {
-                document.getElementById('loader').classList.add('hidden');
-            }
+            const res = await fetch(`${API_URL}${path}.json`, {
+                method, body: data ? JSON.stringify(data) : null,
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const json = await res.json();
+            document.getElementById('loader').classList.add('hidden');
+            return json;
         }
 
         async function init() {
             const classes = await firebase('classes');
             const sel = document.getElementById('class-select');
-            sel.innerHTML = '<option value="">-- اختر الفصل أولاً --</option>';
             if(classes) Object.keys(classes).forEach(c => {
                 const o = document.createElement('option');
                 o.value = c; o.innerText = c; sel.appendChild(o);
             });
         }
 
-        async function onClassChange() {
+        function onClassChange() {
             currentClass = document.getElementById('class-select').value;
             if(currentClass) {
                 document.getElementById('welcome-msg').classList.add('hidden');
                 document.getElementById('main-actions').classList.remove('hidden');
-                allStudents = await firebase(`students/${currentClass}`) || {};
                 backToMain();
             } else {
                 document.getElementById('welcome-msg').classList.remove('hidden');
@@ -297,39 +208,36 @@
 
         function setMode(mode) {
             document.getElementById('main-actions').classList.add('hidden');
-            document.getElementById('mode-attendance').classList.add('hidden');
-            document.getElementById('mode-exams').classList.add('hidden');
-            document.getElementById('mode-edit-grades').classList.add('hidden');
-            
-            const target = document.getElementById(`mode-${mode}`);
-            target.classList.remove('hidden');
-            target.classList.add('active-mode');
+            document.querySelectorAll('[id^="mode-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`mode-${mode}`).classList.remove('hidden');
+            document.getElementById(`mode-${mode}`).classList.add('active-mode');
             
             if(mode === 'attendance') loadAttendance();
             if(mode === 'exams') loadExams();
-            if(mode === 'edit-grades') loadEditGrades();
+            if(mode === 'edit-grades') loadStudentsForEdit();
         }
 
         function backToMain() {
+            document.getElementById('main-actions').classList.remove('hidden');
             document.querySelectorAll('[id^="mode-"]').forEach(el => {
                 el.classList.add('hidden');
                 el.classList.remove('active-mode');
             });
-            document.getElementById('main-actions').classList.remove('hidden');
         }
 
+        // --- Attendance Logic ---
         async function loadAttendance() {
+            const students = await firebase(`students/${currentClass}`);
             const list = document.getElementById('att-list');
             list.innerHTML = "";
-            Object.entries(allStudents).forEach(([id, s]) => {
+            if(!students) return;
+            Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="p-4 font-bold text-gray-700">${s.name}</td>
-                    <td class="p-4">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="markAtt('${id}', 'حاضر')" class="bg-green-500 text-white px-4 py-1 rounded-lg text-sm font-bold">حضور</button>
-                            <button onclick="markAtt('${id}', 'غائب')" class="bg-red-500 text-white px-4 py-1 rounded-lg text-sm font-bold">غياب</button>
-                        </div>
+                    <td class="p-4 flex justify-center gap-2">
+                        <button onclick="markAtt('${id}', 'حاضر')" class="bg-green-500 text-white px-4 py-1 rounded-lg text-sm">حضور</button>
+                        <button onclick="markAtt('${id}', 'غائب')" class="bg-red-500 text-white px-4 py-1 rounded-lg text-sm">غياب</button>
                     </td>
                     <td id="stat-${id}" class="p-4 text-xs font-bold text-gray-400">${s.lastStatus || 'لم يسجل'}</td>
                 `;
@@ -344,17 +252,15 @@
             document.getElementById(`stat-${id}`).innerText = `${status} - ${time}`;
         }
 
-        function loadExams() {
+        // --- Exams Logic ---
+        async function loadExams() {
+            const students = await firebase(`students/${currentClass}`);
             const list = document.getElementById('exam-list');
             list.innerHTML = "";
-            Object.entries(allStudents).forEach(([id, s]) => {
+            if(!students) return;
+            Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-4 font-bold text-gray-600">${s.name}</td>
-                    <td class="p-4">
-                        <input type="number" data-sid="${id}" class="exam-val w-full bg-white border-2 border-gray-100 rounded-xl p-3 text-center font-black text-blue-600 outline-none focus:border-orange-500" placeholder="0">
-                    </td>
-                `;
+                tr.innerHTML = `<td class="p-4 font-bold">${s.name}</td><td class="p-4"><input type="number" data-sid="${id}" class="exam-val w-full bg-white border rounded-xl p-2 text-center" placeholder="0"></td>`;
                 list.appendChild(tr);
             });
         }
@@ -362,8 +268,7 @@
         async function saveExamsAction() {
             const name = document.getElementById('exam-name').value.trim();
             const max = document.getElementById('exam-max').value;
-            if(!name) return alert("يرجى كتابة اسم الامتحان أولاً");
-
+            if(!name) return alert("يرجى كتابة اسم الامتحان");
             const inputs = document.querySelectorAll('.exam-val');
             for(let i of inputs) {
                 const sid = i.dataset.sid;
@@ -371,99 +276,95 @@
                 await firebase(`exams/${currentClass}/${sid}`, 'POST', { title: name, score, total: max, date: new Date().toLocaleDateString('ar-EG') });
                 await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${score} / ${max}`);
             }
-            alert("تم حفظ درجات الامتحان بنجاح ✅");
+            alert("تم الحفظ بنجاح ✅");
             backToMain();
         }
 
-        async function loadEditGrades() {
-            const examsResponse = await firebase(`exams/${currentClass}`);
-            const list = document.getElementById('edit-grades-list');
+        // --- Edit Grades Logic ---
+        async function loadStudentsForEdit() {
+            const students = await firebase(`students/${currentClass}`);
+            const list = document.getElementById('edit-students-list');
             list.innerHTML = "";
-            allExamsData = [];
-
-            if (!examsResponse) {
-                list.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-400">لا توجد درجات مسجلة لهذا الفصل</td></tr>`;
-                return;
-            }
-
-            Object.entries(examsResponse).forEach(([sid, records]) => {
-                const studentName = allStudents[sid]?.name || "طالب محذوف";
-                Object.entries(records).forEach(([rid, data]) => {
-                    allExamsData.push({
-                        sid, rid, studentName,
-                        title: data.title,
-                        score: data.score,
-                        total: data.total,
-                        date: data.date
-                    });
-                });
-            });
-
-            allExamsData.sort((a,b) => new Date(b.date) - new Date(a.date));
-            renderGradesTable(allExamsData);
-        }
-
-        function renderGradesTable(data) {
-            const list = document.getElementById('edit-grades-list');
-            list.innerHTML = "";
-            data.forEach(item => {
+            if(!students) return;
+            Object.entries(students).forEach(([id, s]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="p-4 font-bold text-gray-700">${item.studentName}</td>
-                    <td class="p-4 text-gray-600">${item.title}</td>
-                    <td class="p-4 text-center text-xs text-gray-400">${item.date}</td>
+                    <td class="p-4 font-bold text-gray-700">${s.name}</td>
                     <td class="p-4 text-center">
-                        <div class="inline-flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full">
-                            <span id="view-score-${item.rid}" class="font-black text-blue-600">${item.score}</span>
-                            <span class="text-gray-300">/</span>
-                            <span class="text-gray-500 font-bold">${item.total}</span>
-                        </div>
-                    </td>
-                    <td class="p-4 text-center">
-                        <button onclick="editSingleGrade('${item.sid}', '${item.rid}', '${item.score}')" class="text-blue-500 hover:text-blue-700 text-xl p-2 bg-blue-50 rounded-full transition-all">✏️</button>
+                        <button onclick="viewStudentGrades('${id}', '${s.name}')" class="bg-blue-100 text-blue-700 px-6 py-2 rounded-xl font-bold hover:bg-blue-200">عرض الدرجات</button>
                     </td>
                 `;
                 list.appendChild(tr);
             });
         }
 
-        function filterGrades() {
-            const query = document.getElementById('edit-search').value.toLowerCase();
-            const filtered = allExamsData.filter(item => 
-                item.studentName.toLowerCase().includes(query) || 
-                item.title.toLowerCase().includes(query)
-            );
-            renderGradesTable(filtered);
-        }
-
-        async function editSingleGrade(sid, rid, oldScore) {
-            const newScore = prompt("أدخل الدرجة الجديدة:", oldScore);
-            if (newScore === null || newScore === oldScore) return;
-
-            await firebase(`exams/${currentClass}/${sid}/${rid}/score`, 'PUT', newScore);
-            const record = allExamsData.find(i => i.rid === rid);
-            if(record) {
-                await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${newScore} / ${record.total}`);
+        async function viewStudentGrades(sid, name) {
+            document.getElementById('modal-student-name').innerText = name;
+            const exams = await firebase(`exams/${currentClass}/${sid}`);
+            const content = document.getElementById('modal-content');
+            content.innerHTML = "";
+            
+            if(!exams) {
+                content.innerHTML = "<p class='text-center text-gray-400 py-10'>لا يوجد درجات مسجلة لهذا الطالب</p>";
+            } else {
+                Object.entries(exams).forEach(([eid, e]) => {
+                    const row = document.createElement('div');
+                    row.className = "bg-gray-50 p-4 rounded-2xl border flex justify-between items-center";
+                    row.innerHTML = `
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-400 font-bold">${e.date}</div>
+                            <div class="font-black text-gray-800">${e.title}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="bg-white px-4 py-2 rounded-xl border-2 border-blue-100">
+                                <input id="inp-${eid}" type="number" value="${e.score}" class="w-12 text-center font-bold text-blue-600 bg-transparent outline-none" disabled>
+                                <span class="text-gray-300 mx-1">/</span>
+                                <span class="text-gray-400">${e.total}</span>
+                            </div>
+                            <button id="btn-edit-${eid}" onclick="enableEdit('${eid}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">✏️</button>
+                            <button id="btn-save-${eid}" onclick="saveEdit('${sid}', '${eid}', ${e.total})" class="hidden p-2 text-green-500 hover:bg-green-50 rounded-lg">✔️</button>
+                        </div>
+                    `;
+                    content.appendChild(row);
+                });
             }
-
-            alert("تم التعديل بنجاح");
-            loadEditGrades();
+            document.getElementById('grades-modal').classList.remove('hidden');
         }
 
-        function toggleSettings() {
-            document.getElementById('settings-area').classList.toggle('hidden');
+        function enableEdit(eid) {
+            document.getElementById(`inp-${eid}`).disabled = false;
+            document.getElementById(`inp-${eid}`).focus();
+            document.getElementById(`btn-edit-${eid}`).classList.add('hidden');
+            document.getElementById(`btn-save-${eid}`).classList.remove('hidden');
         }
 
+        async function saveEdit(sid, eid, total) {
+            const newScore = document.getElementById(`inp-${eid}`).value;
+            await firebase(`exams/${currentClass}/${sid}/${eid}/score`, 'PUT', newScore);
+            // تحديث آخر درجة في ملف الطالب الرئيسي أيضاً
+            await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${newScore} / ${total}`);
+            
+            document.getElementById(`inp-${eid}`).disabled = true;
+            document.getElementById(`btn-edit-${eid}`).classList.remove('hidden');
+            document.getElementById(`btn-save-${eid}`).classList.add('hidden');
+            alert("تم التعديل بنجاح ✅");
+        }
+
+        function closeGradesModal() {
+            document.getElementById('grades-modal').classList.add('hidden');
+        }
+
+        // Settings
+        function toggleSettings() { document.getElementById('settings-area').classList.toggle('hidden'); }
         async function addClass() {
             const n = document.getElementById('new-class').value.trim();
             if(!n) return;
             await firebase(`classes/${n}`, 'PUT', { created: Date.now() });
-            init();
-            document.getElementById('new-class').value = "";
+            location.reload();
         }
 
         document.getElementById('excel-in').addEventListener('change', function(e) {
-            if(!currentClass) return alert("اختر الفصل أولاً من القائمة بالأعلى");
+            if(!currentClass) return alert("اختر الفصل أولاً");
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 const data = new Uint8Array(evt.target.result);
@@ -479,14 +380,7 @@
             reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        // Start by checking authentication
-        window.onload = checkAuth;
+        window.onload = init;
     </script>
 </body>
-                    </html>
-            
-
-        
-        
-
-        
+                        </html>
