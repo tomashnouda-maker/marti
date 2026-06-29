@@ -1,3 +1,1402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة المدير - التحكم الذكي الاحترافي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            background-color: #f8fafc; 
+        }
+        .action-card { 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            border: 2px solid transparent; 
+        }
+        .action-card:hover { 
+            transform: translateY(-6px); 
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        .active-mode { 
+            display: block !important; 
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(16px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .loader-spin { 
+            border-top-color: #3b82f6; 
+            animation: spin 0.8s linear infinite; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .class-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .class-card:hover {
+            transform: scale(1.03);
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Global Full-Screen Loader -->
+    <div id="loader" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+            <div class="loader-spin rounded-full border-4 border-slate-100 h-12 w-12"></div>
+            <p class="text-sm font-bold text-slate-600 animate-pulse">جاري تحديث البيانات...</p>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notification System -->
+    <div id="toast-container" class="fixed bottom-5 left-5 right-5 md:left-auto md:right-5 md:w-96 z-[100] flex flex-col gap-3"></div>
+
+    <!-- Top Navigation -->
+    <nav class="bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-100 sticky top-0 z-40 transition-all">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row gap-3 justify-between items-center">
+            
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center gap-2">
+                    <div class="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-2xl text-xs font-black tracking-wider shadow-md shadow-blue-500/20">
+                        ADMIN PRO
+                    </div>
+                    <h1 class="text-lg md:text-xl font-extrabold bg-gradient-to-r from-blue-700 to-indigo-800 bg-clip-text text-transparent">
+                        بوابة المدير الاحترافية
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Active Class Badge & Switcher -->
+            <div id="active-class-indicator" class="hidden flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-2xl">
+                <span class="text-xs text-blue-500 font-bold">الفصل النشط:</span>
+                <span id="active-class-name" class="text-sm font-black text-blue-800"></span>
+                <button onclick="resetClassSelection()" class="text-xs bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-500 px-2.5 py-1 rounded-xl shadow-sm border transition-all font-bold">تغيير ↩</button>
+            </div>
+
+            <!-- Global Real-time Search Box -->
+            <div class="relative w-full md:w-80">
+                <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">🔍</span>
+                <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="ابحث عن طالب باسمه أو كوده..." class="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-2xl pr-9 pl-4 py-2 text-sm font-bold outline-none transition-all" />
+                <button id="clear-search" onclick="clearGlobalSearch()" class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 hover:text-slate-600 hidden">✕</button>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6">
+        
+        <!-- Developer Honor Badge (Tomas Code) -->
+        <div class="mb-6 bg-gradient-to-l from-indigo-900 to-blue-950 text-white p-4 rounded-3xl shadow-lg flex flex-col sm:flex-row justify-between items-center gap-3 border border-indigo-500/20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-500/20 text-indigo-300 rounded-2xl flex items-center justify-center text-xl shadow-inner">💻</div>
+                <div>
+                    <h4 class="text-xs text-indigo-300 font-bold">منصة الإدارة والتحكم الذكي</h4>
+                    <p class="text-sm font-black tracking-wide text-white">برمجة وتطوير: <span class="text-amber-400">توماس شنودة فرح (توماس كود)</span></p>
+                </div>
+            </div>
+            <a href="https://wa.me/201288769853" target="_blank" class="bg-indigo-600/50 hover:bg-indigo-600 border border-indigo-400/30 text-white px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2">
+                📞 تواصل معنا: <span class="font-mono tracking-wider">01288769853</span>
+            </a>
+        </div>
+
+        <!-- Global Search Results Panel (Overlay style when active) -->
+        <div id="search-results-panel" class="hidden mb-10 space-y-6 animate-slideUp">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-[2rem] text-white shadow-xl flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-black">🔍 نتائج البحث الذكي المباشر</h2>
+                    <p class="text-xs text-blue-100 mt-1">البحث جارٍ في كافة فصول المدرسة وقواعد البيانات بدون الحاجة لتحديد فصل</p>
+                </div>
+                <button onclick="clearGlobalSearch()" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">إغلاق البحث ✕</button>
+            </div>
+            
+            <div id="search-results-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Search cards will dynamically appear here -->
+            </div>
+        </div>
+
+        <!-- Welcome & Class Selection Screen (Instead of dropdown) -->
+        <div id="welcome-msg" class="space-y-8 py-10 px-4 transition-all duration-300">
+            <div class="text-center max-w-2xl mx-auto space-y-4">
+                <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-4xl mx-auto shadow-inner animate-bounce">
+                    🏫
+                </div>
+                <h2 class="text-2xl md:text-3xl font-black text-slate-800">أهلاً بك في نظام الإدارة المدرسي الذكي</h2>
+                <p class="text-slate-500 text-sm md:text-base leading-relaxed">
+                    يرجى تحديد الصف أو الشعبة الدراسية المطلوبة من القائمة المرئية أدناه لبدء رصد الغياب والدرجات، أو استخدام شريط البحث الذكي للوصول المباشر لأي طالب.
+                </p>
+            </div>
+
+            <!-- Visual Classes Selector Card Grid -->
+            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <h3 class="font-extrabold text-slate-800 flex items-center gap-2 text-lg">
+                        📂 الفصول والصفوف الدراسية النشطة
+                    </h3>
+                    <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-blue-100" id="classes-count-badge">0 فصول</span>
+                </div>
+
+                <div id="visual-class-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Dynamic class cards with gorgeous designs are injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Class Dashboard Stats (Hidden until class selected) -->
+        <div id="class-stats" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-bold">👥</div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-bold">إجمالي الطلاب</span>
+                    <span id="stat-total-students" class="text-xl font-black text-slate-800">0</span>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold">✓</div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-bold">حاضرون اليوم</span>
+                    <span id="stat-present-today" class="text-xl font-black text-slate-800">0</span>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-xl font-bold">✗</div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-bold">غائبون اليوم</span>
+                    <span id="stat-absent-today" class="text-xl font-black text-slate-800">0</span>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl font-bold">📊</div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-bold">نسبة الحضور</span>
+                    <span id="stat-attendance-rate" class="text-xl font-black text-slate-800">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <div id="main-actions" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <button onclick="setMode('attendance')" class="action-card bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center text-3xl mb-5">📅</div>
+                <h3 class="text-lg font-black text-slate-800">أخذ الغياب والحضور</h3>
+                <p class="text-xs text-slate-400 mt-2 max-w-[200px]">تسجيل حالة حضور الطلاب لتاريخ اليوم بضغطة زر</p>
+            </button>
+            <button onclick="setMode('exams')" class="action-card bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center text-3xl mb-5">📝</div>
+                <h3 class="text-lg font-black text-slate-800">إضافة درجات امتحان</h3>
+                <p class="text-xs text-slate-400 mt-2 max-w-[200px]">رصد درجات اختبار أو تقييم جديد للفصل</p>
+            </button>
+            <button onclick="setMode('edit-grades')" class="action-card bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-3xl mb-5">✏️</div>
+                <h3 class="text-lg font-black text-slate-800">تعديل ومراجعة الدرجات</h3>
+                <p class="text-xs text-slate-400 mt-2 max-w-[200px]">مراجعة وتعديل درجات الطلاب المسجلة وتصديرها</p>
+            </button>
+        </div>
+
+        <!-- Mode: Attendance -->
+        <div id="mode-attendance" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border-r-8 border-emerald-500">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">رصد الحضور اليومي</h2>
+                    <p class="text-xs text-slate-400 mt-1">يتم تسجيل الغياب فقط عند رصده، الأيام غير المسجلة لا تحتسب غياباً.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="markAllAttendance('حاضر')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition-all">✓ حضور الجميع</button>
+                    <button onclick="markAllAttendance('غائب')" class="bg-rose-50 text-rose-700 hover:bg-rose-100 px-4 py-2 rounded-xl text-xs font-bold transition-all">✕ غياب الجميع</button>
+                    <button onclick="backToMain()" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all">⬅ العودة للرئيسية</button>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-100">
+                                <th class="p-4 text-slate-500 text-sm font-bold">اسم الطالب / الكود</th>
+                                <th class="p-4 text-slate-500 text-sm font-bold text-center">تحديد الحالة اليومية</th>
+                                <th class="p-4 text-slate-500 text-sm font-bold">آخر حالة مسجلة بالتوقيت</th>
+                            </tr>
+                        </thead>
+                        <tbody id="att-list" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode: Exams -->
+        <div id="mode-exams" class="hidden space-y-6">
+            <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100 border-r-8 border-amber-500 space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">رصد درجات امتحان جديد</h2>
+                        <p class="text-xs text-slate-400 mt-1">يرجى كتابة اسم الامتحان والدرجة العظمى ثم رصد الدرجات</p>
+                    </div>
+                    <button onclick="backToMain()" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all">⬅ العودة</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-2">اسم الاختبار / المادة</label>
+                        <input type="text" id="exam-name" placeholder="مثال: رياضيات - منتصف الفصل الأول" class="w-full bg-slate-50 border-2 border-slate-100 focus:border-amber-400 focus:bg-white p-4 rounded-2xl outline-none font-semibold transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-2">الدرجة النهائية القصوى</label>
+                        <input type="number" id="exam-max" value="100" class="w-full bg-slate-50 border-2 border-slate-100 focus:border-amber-400 focus:bg-white p-4 rounded-2xl outline-none font-bold text-center transition-all">
+                    </div>
+                </div>
+                
+                <div class="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200/60 max-h-[450px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-right">
+                        <thead class="bg-slate-100/80 sticky top-0 backdrop-blur">
+                            <tr>
+                                <th class="p-4 text-slate-500 text-sm font-bold">اسم الطالب / الكود</th>
+                                <th class="p-4 text-slate-500 text-sm font-bold text-center w-40">الدرجة المستحقة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exam-list" class="divide-y divide-slate-200/60"></tbody>
+                    </table>
+                </div>
+                
+                <button onclick="saveExamsAction()" class="w-full bg-amber-500 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-amber-500/20 hover:bg-amber-600 active:scale-[0.99] transition-all">
+                    🚀 حفظ وإرسال درجات الامتحان للجميع
+                </button>
+            </div>
+        </div>
+
+        <!-- Mode: Edit Grades -->
+        <div id="mode-edit-grades" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border-r-8 border-blue-500">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">مراجعة وتعديل سجل الدرجات</h2>
+                    <p class="text-xs text-slate-400 mt-1">تعديل درجات الاختبارات الحالية، أو تصدير سجل درجات الفصل مباشرة</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="exportGradesToExcel()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+                        📥 تصدير كشف الدرجات (Excel)
+                    </button>
+                    <button onclick="backToMain()" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all">⬅ العودة</button>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-100">
+                                <th class="p-4 text-slate-500 text-sm font-bold">اسم الطالب / الكود</th>
+                                <th class="p-4 text-slate-500 text-sm font-bold text-center">سجل الدرجات الكامل</th>
+                            </tr>
+                        </thead>
+                        <tbody id="edit-students-list" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Settings -->
+        <div class="mt-16 border-t border-slate-200/80 pt-8">
+            <button onclick="toggleSettings()" class="text-blue-600 font-bold flex items-center gap-2 bg-blue-50 hover:bg-blue-100/80 px-6 py-3.5 rounded-2xl transition-all shadow-sm">
+                ⚙️ إدارة الفصول وقائمة الطلاب ومسؤول النظام
+            </button>
+            
+            <div id="settings-area" class="hidden space-y-8 pb-20 mt-6 animate-slideUp">
+                
+                <!-- Manage Classes Panel -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 space-y-6">
+                    <h4 class="font-bold text-slate-700 flex items-center gap-2">🏫 إدارة وتأسيس الفصول الدراسية</h4>
+                    
+                    <!-- Create Class Form -->
+                    <div class="flex flex-col sm:flex-row gap-2 border-b border-slate-100 pb-6">
+                        <input type="text" id="new-class" placeholder="مثال: الصف الأول - شعبة أ" class="flex-1 bg-slate-50 p-4 rounded-xl border border-slate-100 outline-none focus:ring-2 ring-blue-500 focus:bg-white font-bold text-slate-800 transition-all">
+                        <button onclick="addClass()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-md shadow-blue-500/10 whitespace-nowrap">تأسيس فصل جديد</button>
+                    </div>
+
+                    <!-- Classes List with Rename & Delete options -->
+                    <div>
+                        <h5 class="text-xs font-bold text-slate-400 mb-3">القائمة الحالية للفصول الدراسية للتحكم والتعديل:</h5>
+                        <div id="classes-management-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Dynamic classes list -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Manual Student Box -->
+                    <div id="manual-student-box" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 border-t-4 border-blue-500">
+                        <h4 class="font-bold text-slate-700 mb-2">👤 تسجيل طالب جديد يدوياً</h4>
+                        <p id="class-warning" class="text-xs text-rose-500 mb-4 font-bold flex items-center gap-1">⚠️ يرجى اختيار فصل أولاً لتنشيط هذا الخيار</p>
+                        <div class="space-y-3">
+                            <input type="text" id="manual-student-name" placeholder="اكتب اسم الطالب الكامل..." class="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 outline-none focus:ring-2 ring-blue-500 focus:bg-white font-bold transition-all" disabled>
+                            <button onclick="addStudentManual()" id="manual-add-btn" class="w-full bg-slate-100 text-slate-400 py-4 rounded-xl font-bold transition-all cursor-not-allowed" disabled>
+                                تسجيل الطالب وتوليد كود تلقائي
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Excel Import Box -->
+                    <div class="bg-slate-900 p-6 rounded-[2rem] shadow-sm text-white flex flex-col justify-center items-center text-center relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl"></div>
+                        <h4 class="font-black text-lg mb-2">📊 رفع واستيراد كشف الفصل (Excel)</h4>
+                        <p class="text-xs text-slate-400 mb-4 max-w-sm">ارفع ملف إكسل يحتوي على أسماء الطلاب وسيتم تلقائياً إدراجهم وتوليد أكواد فريدة لهم للغياب والدرجات.</p>
+                        <input type="file" id="excel-in" class="hidden" accept=".xlsx, .xls">
+                        <button onclick="triggerExcelUpload()" class="bg-white text-slate-900 px-8 py-3.5 rounded-xl font-black shadow-lg hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all">
+                            📥 اختر ملف Excel من جهازك
+                        </button>
+                        <p class="text-[10px] mt-3 opacity-60">تنبيه: يجب أن يحتوي الملف على عمود يحمل المسمى "الاسم" أو "Name"</p>
+                    </div>
+                </div>
+
+                <!-- Students Management Directory (Delete / Copy Codes / Rename Students) -->
+                <div id="students-directory-card" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hidden">
+                    <h4 class="font-bold text-slate-700 mb-3">📁 إدارة طلاب الفصل الحالي وتعديل أسمائهم</h4>
+                    <p class="text-xs text-slate-400 mb-4">بإمكانك تغيير اسم الطالب فوراً، نسخ كود الطالب أو إزالته نهائياً من قيود الفصل الدراسي.</p>
+                    <div class="max-h-96 overflow-y-auto custom-scrollbar border rounded-2xl divide-y divide-slate-100" id="dir-students-list">
+                        <!-- Student directories go here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer with Developer Trademark Info -->
+    <footer class="bg-slate-900 text-slate-400 border-t border-slate-800 py-8 text-center text-xs font-semibold mt-auto space-y-2">
+        <p class="text-slate-300 font-bold text-sm">بوابة المدير الذكية الاحترافية © 2026</p>
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4 text-[11px] text-slate-400">
+            <span>برمجة وتطوير المطور: <strong class="text-amber-400 font-black">توماس شنودة فرح (توماس كود)</strong></span>
+            <span class="hidden sm:inline">•</span>
+            <span>رقم الموبايل: <strong class="text-blue-400 font-mono">01288769853</strong></span>
+        </div>
+    </footer>
+
+    <!-- Grades Modal -->
+    <div id="grades-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 animate-fade-in">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden animate-slideUp">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/60 backdrop-blur">
+                <div>
+                    <h3 id="modal-student-name" class="text-lg font-black text-slate-800">اسم الطالب</h3>
+                    <p class="text-xs text-slate-400">السجل الكامل للدرجات المسجلة في هذا الفصل</p>
+                </div>
+                <!-- Fixed and verified close (X) button with closeGradesModal() -->
+                <button onclick="closeGradesModal()" class="w-10 h-10 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 rounded-full flex items-center justify-center font-bold text-slate-500 transition-all text-sm shadow-sm" title="إغلاق النافذة">
+                    ✕
+                </button>
+            </div>
+            <div id="modal-content" class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 text-center space-y-4">
+            <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto">⚠️</div>
+            <h3 class="text-lg font-bold text-slate-800" id="confirm-title">هل أنت متأكد؟</h3>
+            <p class="text-xs text-slate-400" id="confirm-msg">لا يمكنك التراجع عن هذا الإجراء لاحقاً.</p>
+            <div class="flex gap-2 justify-center pt-2">
+                <button id="confirm-yes-btn" class="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all">نعم، متأكد</button>
+                <button onclick="closeConfirmModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-bold transition-all">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://tomas-f73e9-default-rtdb.europe-west1.firebasedatabase.app/";
+        let currentClass = "";
+        let onConfirmAction = null;
+        let cachedAllData = null; // Store for global search index
+
+        // Custom Toast System (Replacing alert entirely)
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-white border-emerald-500 text-emerald-800';
+            let icon = '✓';
+            if (type === 'error') {
+                bg = 'bg-white border-rose-500 text-rose-800';
+                icon = '✕';
+            } else if (type === 'info') {
+                bg = 'bg-white border-blue-500 text-blue-800';
+                icon = 'ℹ';
+            }
+
+            toast.className = `p-4 rounded-2xl border-r-4 shadow-lg flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0 ${bg}`;
+            toast.innerHTML = `
+                <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs bg-slate-100">${icon}</div>
+                <div class="text-xs font-bold flex-1">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Auto dismiss
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3500);
+        }
+
+        // Custom Confirm Modal
+        function askConfirm(title, message, onYes) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-msg').innerText = message;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            onConfirmAction = () => {
+                onYes();
+                closeConfirmModal();
+            };
+            document.getElementById('confirm-yes-btn').onclick = onConfirmAction;
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            onConfirmAction = null;
+        }
+
+        // Close grades modal cleanly
+        function closeGradesModal() {
+            document.getElementById('grades-modal').classList.add('hidden');
+        }
+
+        // Firebase API Helper
+        async function firebase(path, method = 'GET', data = null) {
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                const res = await fetch(`${API_URL}${path}.json`, {
+                    method, 
+                    body: data ? JSON.stringify(data) : null,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!res.ok) throw new Error('فشلت عملية معالجة الخادم');
+                const json = await res.json();
+                document.getElementById('loader').classList.add('hidden');
+                return json;
+            } catch (error) {
+                document.getElementById('loader').classList.add('hidden');
+                showToast("خطأ في الاتصال بالخادم. يرجى التحقق من الشبكة", "error");
+                console.error(error);
+                return null;
+            }
+        }
+
+        // Initialize App Classes and render visual selection cards
+        async function init() {
+            const classes = await firebase('classes');
+            const cardsContainer = document.getElementById('visual-class-cards');
+            const countBadge = document.getElementById('classes-count-badge');
+            
+            cardsContainer.innerHTML = "";
+            
+            if (classes && Object.keys(classes).length > 0) {
+                const sortedClasses = Object.keys(classes).sort();
+                countBadge.innerText = `${sortedClasses.length} فصول`;
+
+                sortedClasses.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = "class-card bg-slate-50 hover:bg-blue-50/50 p-6 rounded-3xl border border-slate-200/60 cursor-pointer flex flex-col justify-between gap-4 transition-all shadow-sm";
+                    card.setAttribute('onclick', `selectClassDirectly('${c}')`);
+                    
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center text-xl font-bold">🏫</div>
+                            <div>
+                                <h4 class="font-black text-slate-800 text-base">${c}</h4>
+                                <p class="text-[11px] text-slate-400 mt-0.5">اضغط لفتح الفصل وإدارة طلابه</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-2 pt-3 border-t border-slate-200/50">
+                            <span class="text-xs text-blue-600 font-extrabold flex items-center gap-1">دخول الفصل ⬅</span>
+                            <span class="text-[10px] text-slate-400">إدارة ذكية</span>
+                        </div>
+                    `;
+                    cardsContainer.appendChild(card);
+                });
+            } else {
+                countBadge.innerText = "0 فصول";
+                cardsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-slate-400 space-y-3">
+                        <div class="text-4xl">📂</div>
+                        <p class="text-sm font-bold">لا توجد فصول دراسية مضافة حالياً.</p>
+                        <button onclick="toggleSettings(); document.getElementById('new-class').focus();" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all hover:bg-blue-700 shadow-md">
+                            ➕ قم بتأسيس أول فصل الآن
+                        </button>
+                    </div>`;
+            }
+            
+            await drawClassesManagement();
+            preloadGlobalSearchData();
+        }
+
+        // Direct class selection handler
+        async function selectClassDirectly(className) {
+            currentClass = className;
+            
+            // Show Active Class Badge in topbar
+            document.getElementById('active-class-indicator').classList.remove('hidden');
+            document.getElementById('active-class-name').innerText = className;
+
+            const manualInp = document.getElementById('manual-student-name');
+            const manualBtn = document.getElementById('manual-add-btn');
+            const warning = document.getElementById('class-warning');
+
+            // Hide search panel and welcome screen
+            clearGlobalSearch();
+            document.getElementById('welcome-msg').classList.add('hidden');
+            
+            // Reveal core components
+            document.getElementById('main-actions').classList.remove('hidden');
+            document.getElementById('class-stats').classList.remove('hidden');
+            document.getElementById('students-directory-card').classList.remove('hidden');
+            
+            manualInp.disabled = false;
+            manualBtn.disabled = false;
+            manualBtn.classList.replace('bg-slate-100', 'bg-blue-600');
+            manualBtn.classList.replace('text-slate-400', 'text-white');
+            manualBtn.classList.remove('cursor-not-allowed');
+            warning.classList.add('hidden');
+            
+            // Fetch stats and students list
+            await updateDashboardStats();
+            await loadStudentsDirectory();
+            backToMain();
+        }
+
+        // Return to visual list / reset selected class
+        function resetClassSelection() {
+            currentClass = "";
+            document.getElementById('active-class-indicator').classList.add('hidden');
+            document.getElementById('active-class-name').innerText = "";
+
+            const manualInp = document.getElementById('manual-student-name');
+            const manualBtn = document.getElementById('manual-add-btn');
+            const warning = document.getElementById('class-warning');
+
+            document.getElementById('welcome-msg').classList.remove('hidden');
+            document.getElementById('main-actions').classList.add('hidden');
+            document.getElementById('class-stats').classList.add('hidden');
+            document.getElementById('students-directory-card').classList.add('hidden');
+            
+            manualInp.disabled = true;
+            manualBtn.disabled = true;
+            manualBtn.classList.replace('bg-blue-600', 'bg-slate-100');
+            manualBtn.classList.replace('text-white', 'text-slate-400');
+            manualBtn.classList.add('cursor-not-allowed');
+            warning.classList.remove('hidden');
+
+            document.querySelectorAll('[id^="mode-"]').forEach(el => el.classList.add('hidden'));
+            init();
+        }
+
+        // Preload Data for Fast Localized Global Searching
+        async function preloadGlobalSearchData() {
+            try {
+                const students = await firebase('students');
+                const exams = await firebase('exams');
+                const logs = await firebase('logs');
+                cachedAllData = { students, exams, logs };
+            } catch (e) {
+                console.warn("Failed to prefetch search index:", e);
+            }
+        }
+
+        // Set Navigation Modes
+        function setMode(mode) {
+            document.getElementById('main-actions').classList.add('hidden');
+            document.querySelectorAll('[id^="mode-"]').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`mode-${mode}`);
+            target.classList.remove('hidden');
+            target.classList.add('active-mode');
+            
+            if (mode === 'attendance') loadAttendance();
+            if (mode === 'exams') loadExams();
+            if (mode === 'edit-grades') loadStudentsForEdit();
+        }
+
+        function backToMain() {
+            document.getElementById('main-actions').classList.remove('hidden');
+            document.querySelectorAll('[id^="mode-"]').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('active-mode');
+            });
+            updateDashboardStats();
+        }
+
+        // Calculate and Render Dashboard Stats based on Actual Days Checked only
+        async function updateDashboardStats() {
+            if (!currentClass) return;
+            const students = await firebase(`students/${currentClass}`);
+            
+            if (!students) {
+                document.getElementById('stat-total-students').innerText = "0";
+                document.getElementById('stat-present-today').innerText = "0";
+                document.getElementById('stat-absent-today').innerText = "0";
+                document.getElementById('stat-attendance-rate').innerText = "0%";
+                return;
+            }
+
+            const total = Object.keys(students).length;
+            let presentCount = 0;
+            let absentCount = 0;
+
+            Object.values(students).forEach(s => {
+                if (s.lastStatus) {
+                    if (s.lastStatus.startsWith('حاضر')) {
+                        presentCount++;
+                    } else if (s.lastStatus.startsWith('غائب')) {
+                        absentCount++;
+                    }
+                }
+            });
+
+            // Calculate attendance rate based strictly on total class size and today's checked in status
+            const rate = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+
+            document.getElementById('stat-total-students').innerText = total;
+            document.getElementById('stat-present-today').innerText = presentCount;
+            document.getElementById('stat-absent-today').innerText = absentCount;
+            document.getElementById('stat-attendance-rate').innerText = `${rate}%`;
+        }
+
+        // Manual Student Addition
+        async function addStudentManual() {
+            const nameInp = document.getElementById('manual-student-name');
+            const name = nameInp.value.trim();
+            if (!name) return showToast("يرجى إدخال اسم الطالب أولاً", "error");
+            
+            const code = 'T' + Math.floor(Math.random() * 90000 + 10000);
+            await firebase(`students/${currentClass}`, 'POST', { name, code, createdAt: Date.now() });
+            
+            showToast(`تم إضافة الطالب: ${name} بنجاح، كود الطالب: ${code}`, "success");
+            nameInp.value = "";
+            
+            await updateDashboardStats();
+            await loadStudentsDirectory();
+            preloadGlobalSearchData();
+        }
+
+        // Trigger Hidden File Selector for Excel Import
+        function triggerExcelUpload() {
+            if (!currentClass) return showToast("يرجى تحديد الفصل الدراسي أولاً", "error");
+            document.getElementById('excel-in').click();
+        }
+
+        // Attendance Loading and Drawing
+        async function loadAttendance() {
+            const students = await firebase(`students/${currentClass}`);
+            const list = document.getElementById('att-list');
+            list.innerHTML = "";
+            if (!students) {
+                list.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-400 font-bold">لا يوجد طلاب مسجلين في هذا الفصل حالياً</td></tr>`;
+                return;
+            }
+            
+            Object.entries(students).forEach(([id, s]) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold text-slate-800 text-sm md:text-base">${s.name}</div>
+                        <span class="inline-block bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-md font-bold mt-1">${s.code || 'بدون كود'}</span>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="markAtt('${id}', 'حاضر')" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-emerald-500/10 transition-all flex items-center gap-1">✓ حضور</button>
+                            <button onclick="markAtt('${id}', 'غائب')" class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-rose-500/10 transition-all flex items-center gap-1">✕ غياب</button>
+                        </div>
+                    </td>
+                    <td id="stat-${id}" class="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                        ${s.lastStatus ? `<span class="bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-100 block">${s.lastStatus}</span>` : '<span class="text-slate-400 italic">لم يتم أخذ الغياب لليوم</span>'}
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        // Attendance Individual Marking
+        async function markAtt(id, status) {
+            const time = new Date().toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const fullStatusText = `${status} - ${time}`;
+            
+            await firebase(`logs/${currentClass}/${id}`, 'POST', { status, time, date: new Date().toISOString().split('T')[0] });
+            await firebase(`students/${currentClass}/${id}/lastStatus`, 'PUT', fullStatusText);
+            
+            const cell = document.getElementById(`stat-${id}`);
+            if (cell) {
+                cell.innerHTML = `<span class="bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-100 block">${fullStatusText}</span>`;
+            }
+            showToast("تم تسجيل حالة حضور الطالب بنجاح", "success");
+            preloadGlobalSearchData();
+        }
+
+        // Attendance Bulk Marking
+        async function markAllAttendance(status) {
+            const students = await firebase(`students/${currentClass}`);
+            if (!students) return showToast("لا يوجد طلاب لرصد حضورهم", "error");
+
+            askConfirm(`تأكيد الرصد الجماعي`, `هل ترغب في تحديد جميع الطلاب في الفصل كـ ${status}؟`, async () => {
+                const time = new Date().toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                const fullStatusText = `${status} - ${time}`;
+                
+                for (let id of Object.keys(students)) {
+                    await firebase(`logs/${currentClass}/${id}`, 'POST', { status, time, date: new Date().toISOString().split('T')[0] });
+                    await firebase(`students/${currentClass}/${id}/lastStatus`, 'PUT', fullStatusText);
+                }
+                
+                showToast("تم تطبيق الرصد على جميع الطلاب بنجاح", "success");
+                await loadAttendance();
+                preloadGlobalSearchData();
+            });
+        }
+
+        // Exams List Rendering
+        async function loadExams() {
+            const students = await firebase(`students/${currentClass}`);
+            const list = document.getElementById('exam-list');
+            list.innerHTML = "";
+            if (!students) {
+                list.innerHTML = `<tr><td colspan="2" class="p-8 text-center text-slate-400 font-bold">يرجى إضافة طلاب أولاً للتمكن من رصد الدرجات</td></tr>`;
+                return;
+            }
+            Object.entries(students).forEach(([id, s]) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-100/30 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold text-slate-700 text-sm md:text-base">${s.name}</div>
+                        <span class="inline-block bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-md font-bold mt-1">${s.code || 'بدون كود'}</span>
+                    </td>
+                    <td class="p-4">
+                        <input type="number" data-sid="${id}" class="exam-val w-full bg-white border border-slate-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl p-2.5 text-center font-bold outline-none transition-all" placeholder="0">
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        // Exams Registration Process
+        async function saveExamsAction() {
+            const name = document.getElementById('exam-name').value.trim();
+            const max = document.getElementById('exam-max').value;
+            
+            if (!name) return showToast("يرجى كتابة اسم الامتحان أو المادة أولاً لتبويب الدرجات", "error");
+            if (!max || max <= 0) return showToast("يرجى إدخال درجة نهائية صحيحة للامتحان", "error");
+
+            const inputs = document.querySelectorAll('.exam-val');
+            for (let i of inputs) {
+                const sid = i.dataset.sid;
+                const score = i.value || 0;
+                
+                await firebase(`exams/${currentClass}/${sid}`, 'POST', { 
+                    title: name, 
+                    score: parseFloat(score), 
+                    total: parseFloat(max), 
+                    date: new Date().toLocaleDateString('ar-EG') 
+                });
+                await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${score} / ${max}`);
+            }
+            
+            showToast("تم رصد وحفظ درجات الطلاب المضافة بنجاح", "success");
+            
+            // Reset input values
+            document.getElementById('exam-name').value = "";
+            backToMain();
+            preloadGlobalSearchData();
+        }
+
+        // Students List Rendering for Grades Modifying
+        async function loadStudentsForEdit() {
+            const students = await firebase(`students/${currentClass}`);
+            const list = document.getElementById('edit-students-list');
+            list.innerHTML = "";
+            if (!students) {
+                list.innerHTML = `<tr><td colspan="2" class="p-8 text-center text-slate-400 font-bold">لا توجد سجلات طلاب مضافة</td></tr>`;
+                return;
+            }
+            Object.entries(students).forEach(([id, s]) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold text-slate-800 text-sm md:text-base">${s.name}</div>
+                        <span class="inline-block bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-md font-bold mt-1">${s.code || 'بدون كود'}</span>
+                    </td>
+                    <td class="p-4 text-center">
+                        <button onclick="viewStudentGrades('${id}', '${s.name} (${s.code})')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 px-6 py-2 rounded-xl text-xs font-bold shadow-sm transition-all">
+                            🔍 عرض وتعديل الدرجات
+                        </button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        // Open Individual Student Grades inside Modal
+        async function viewStudentGrades(sid, nameWithCode) {
+            document.getElementById('modal-student-name').innerText = nameWithCode;
+            const exams = await firebase(`exams/${currentClass}/${sid}`);
+            const content = document.getElementById('modal-content');
+            content.innerHTML = "";
+            
+            if (!exams) {
+                content.innerHTML = `
+                    <div class="text-center py-16 text-slate-400">
+                        <div class="text-4xl mb-3">📭</div>
+                        <p class="text-sm font-bold">لا توجد درجات مسجلة لهذا الطالب في الوقت الحالي</p>
+                    </div>`;
+            } else {
+                Object.entries(exams).forEach(([eid, e]) => {
+                    const row = document.createElement('div');
+                    row.className = "bg-slate-50 p-4 rounded-2xl border border-slate-200/50 flex justify-between items-center gap-3";
+                    row.innerHTML = `
+                        <div class="flex-1">
+                            <div class="text-[10px] text-slate-400 font-bold mb-1">${e.date}</div>
+                            <div class="font-bold text-slate-700 text-sm">${e.title}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 flex items-center gap-1.5">
+                                <input id="inp-${eid}" type="number" value="${e.score}" class="w-12 text-center font-bold text-blue-600 bg-transparent outline-none border-b border-transparent focus:border-blue-500" disabled>
+                                <span class="text-slate-300">/</span> 
+                                <span class="text-slate-400 font-bold text-xs">${e.total}</span>
+                            </div>
+                            <button id="btn-edit-${eid}" onclick="enableEdit('${eid}')" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-white rounded-lg transition-all" title="تعديل">✏️</button>
+                            <button id="btn-save-${eid}" onclick="saveEdit('${sid}', '${eid}', ${e.total})" class="hidden p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all" title="حفظ">✔️</button>
+                        </div>
+                    `;
+                    content.appendChild(row);
+                });
+            }
+            document.getElementById('grades-modal').classList.remove('hidden');
+        }
+
+        function enableEdit(eid) {
+            const inp = document.getElementById(`inp-${eid}`);
+            inp.disabled = false;
+            inp.focus();
+            inp.select();
+            document.getElementById(`btn-edit-${eid}`).classList.add('hidden');
+            document.getElementById(`btn-save-${eid}`).classList.remove('hidden');
+        }
+
+        async function saveEdit(sid, eid, total) {
+            const newScore = parseFloat(document.getElementById(`inp-${eid}`).value || 0);
+            
+            await firebase(`exams/${currentClass}/${sid}/${eid}/score`, 'PUT', newScore);
+            await firebase(`students/${currentClass}/${sid}/lastGrade`, 'PUT', `${newScore} / ${total}`);
+            
+            document.getElementById(`inp-${eid}`).disabled = true;
+            document.getElementById(`btn-edit-${eid}`).classList.remove('hidden');
+            document.getElementById(`btn-save-${eid}`).classList.add('hidden');
+            
+            showToast("تم تحديث درجة الطالب المحددة بنجاح", "success");
+            preloadGlobalSearchData();
+        }
+
+        // Export All Class Grades to Excel Document
+        async function exportGradesToExcel() {
+            if (!currentClass) return showToast("يرجى اختيار فصل أولاً لتصدير البيانات", "error");
+            
+            const students = await firebase(`students/${currentClass}`);
+            if (!students) return showToast("لا يوجد طلاب مسجلين لتصدير بياناتهم", "error");
+
+            const allExamsData = [];
+            
+            for (let [sid, s] of Object.entries(students)) {
+                const exams = await firebase(`exams/${currentClass}/${sid}`);
+                const studentRow = {
+                    "اسم الطالب": s.name,
+                    "كود الطالب": s.code || ""
+                };
+                
+                if (exams) {
+                    Object.values(exams).forEach(e => {
+                        studentRow[e.title] = `${e.score} / ${e.total}`;
+                    });
+                }
+                allExamsData.push(studentRow);
+            }
+
+            const ws = XLSX.utils.json_to_sheet(allExamsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "درجات الفصل");
+            XLSX.writeFile(wb, `كشف_درجات_${currentClass}.xlsx`);
+            showToast("تم توليد وتصدير كشف الدرجات بنجاح", "success");
+        }
+
+        // Draw and Update Classes Management List (Rename / Delete Class)
+        async function drawClassesManagement() {
+            const classes = await firebase('classes');
+            const container = document.getElementById('classes-management-list');
+            container.innerHTML = "";
+
+            if (!classes) {
+                container.innerHTML = `<p class="col-span-full text-slate-400 text-xs italic">لا توجد فصول دراسية مؤسسة حالياً.</p>`;
+                return;
+            }
+
+            Object.keys(classes).forEach(cName => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+                card.innerHTML = `
+                    <div class="flex-1">
+                        <input id="class-input-${cName.replace(/\s+/g, '-')}" type="text" value="${cName}" class="font-bold text-slate-700 bg-transparent border-b border-transparent focus:border-blue-500 focus:bg-white px-2 py-1 outline-none w-full rounded text-sm" disabled />
+                    </div>
+                    <div class="flex gap-1.5 self-end">
+                        <button id="class-editbtn-${cName.replace(/\s+/g, '-')}" onclick="enableClassRename('${cName}')" class="text-xs bg-white border border-slate-200 hover:bg-slate-100 px-3 py-1.5 rounded-lg text-slate-600 font-semibold transition-all">✏️ تعديل</button>
+                        <button id="class-savebtn-${cName.replace(/\s+/g, '-')}" onclick="saveClassRename('${cName}')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-all hidden">✔️ حفظ</button>
+                        <button onclick="deleteWholeClass('${cName}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg font-semibold transition-all">🗑️ حذف</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Enable Class Rename Inputs
+        function enableClassRename(cName) {
+            const cleanId = cName.replace(/\s+/g, '-');
+            document.getElementById(`class-input-${cleanId}`).disabled = false;
+            document.getElementById(`class-input-${cleanId}`).focus();
+            document.getElementById(`class-editbtn-${cleanId}`).classList.add('hidden');
+            document.getElementById(`class-savebtn-${cleanId}`).classList.remove('hidden');
+        }
+
+        // Save Class Rename on Database
+        async function saveClassRename(oldName) {
+            const cleanId = oldName.replace(/\s+/g, '-');
+            const newName = document.getElementById(`class-input-${cleanId}`).value.trim();
+
+            if (!newName) return showToast("اسم الفصل لا يمكن أن يكون فارغاً", "error");
+            if (newName === oldName) {
+                document.getElementById(`class-input-${cleanId}`).disabled = true;
+                document.getElementById(`class-editbtn-${cleanId}`).classList.remove('hidden');
+                document.getElementById(`class-savebtn-${cleanId}`).classList.add('hidden');
+                return;
+            }
+
+            askConfirm("تغيير اسم الفصل", `هل أنت متأكد من تغيير اسم الفصل من "${oldName}" إلى "${newName}"؟ سيتطلب هذا إعادة تحميل الصفحة لتحديث البيانات.`, async () => {
+                // Read old class configurations
+                const classMeta = await firebase(`classes/${oldName}`);
+                const oldStudents = await firebase(`students/${oldName}`);
+                const oldExams = await firebase(`exams/${oldName}`);
+                const oldLogs = await firebase(`logs/${oldName}`);
+
+                // Write to new node
+                await firebase(`classes/${newName}`, 'PUT', classMeta || { created: Date.now() });
+                if (oldStudents) await firebase(`students/${newName}`, 'PUT', oldStudents);
+                if (oldExams) await firebase(`exams/${newName}`, 'PUT', oldExams);
+                if (oldLogs) await firebase(`logs/${newName}`, 'PUT', oldLogs);
+
+                // Clear old database nodes
+                await firebase(`classes/${oldName}`, 'DELETE');
+                await firebase(`students/${oldName}`, 'DELETE');
+                await firebase(`exams/${oldName}`, 'DELETE');
+                await firebase(`logs/${oldName}`, 'DELETE');
+
+                showToast(`تم تغيير اسم الفصل إلى ${newName} بنجاح`, "success");
+                
+                // Refresh full interface to bind to new Class Names
+                setTimeout(() => location.reload(), 1500);
+            });
+        }
+
+        // Delete Entire Class Node along with students
+        async function deleteWholeClass(cName) {
+            askConfirm("حذف الفصل بالكامل", `تحذير شديد! هل أنت متأكد من رغبتك في حذف الفصل الدراسي "${cName}" بالكامل؟ هذا الإجراء سيقوم بحذف جميع الطلاب بداخله ودرجاتهم وسجل حضورهم نهائياً ولا يمكن التراجع عنه.`, async () => {
+                await firebase(`classes/${cName}`, 'DELETE');
+                await firebase(`students/${cName}`, 'DELETE');
+                await firebase(`exams/${cName}`, 'DELETE');
+                await firebase(`logs/${cName}`, 'DELETE');
+
+                showToast(`تم حذف الفصل ${cName} بالكامل بنجاح`, "success");
+                
+                // If the deleted class was the selected one, clear selection
+                if (currentClass === cName) {
+                    currentClass = "";
+                    document.getElementById('active-class-indicator').classList.add('hidden');
+                }
+                
+                await init();
+                resetClassSelection();
+            });
+        }
+
+        // Students Directory Control (Delete & Copy Info & Rename Student Inline)
+        async function loadStudentsDirectory() {
+            const students = await firebase(`students/${currentClass}`);
+            const container = document.getElementById('dir-students-list');
+            container.innerHTML = "";
+
+            if (!students) {
+                container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-bold">لا يوجد طلاب لإدراجهم في الدليل</div>`;
+                return;
+            }
+
+            Object.entries(students).forEach(([id, s]) => {
+                const div = document.createElement('div');
+                div.className = "p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:bg-slate-50 transition-colors";
+                div.innerHTML = `
+                    <div class="flex-1 w-full">
+                        <input id="stud-name-input-${id}" type="text" value="${s.name}" class="font-bold text-slate-800 text-sm bg-transparent border-b border-transparent focus:border-blue-500 focus:bg-white px-2 py-1 outline-none w-full rounded" disabled />
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">${s.code}</span>
+                            <button onclick="copyStudentCode('${s.code}')" class="text-[10px] text-slate-400 hover:text-blue-600 transition-all font-semibold">📋 نسخ الكود</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 self-end">
+                        <button id="stud-edit-btn-${id}" onclick="enableStudentRename('${id}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition-all">✏️ تعديل الاسم</button>
+                        <button id="stud-save-btn-${id}" onclick="saveStudentRename('${id}')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold transition-all hidden">✔️ حفظ الاسم</button>
+                        <button onclick="deleteStudent('${id}', '${s.name}')" class="text-xs text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-lg font-bold transition-all">حذف 🗑️</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Enable student edit fields
+        function enableStudentRename(id) {
+            document.getElementById(`stud-name-input-${id}`).disabled = false;
+            document.getElementById(`stud-name-input-${id}`).focus();
+            document.getElementById(`stud-name-input-${id}`).select();
+            document.getElementById(`stud-edit-btn-${id}`).classList.add('hidden');
+            document.getElementById(`stud-save-btn-${id}`).classList.remove('hidden');
+        }
+
+        // Save Student rename on Server
+        async function saveStudentRename(id) {
+            const newName = document.getElementById(`stud-name-input-${id}`).value.trim();
+            if (!newName) return showToast("لا يمكن أن يكون اسم الطالب فارغاً", "error");
+
+            await firebase(`students/${currentClass}/${id}/name`, 'PUT', newName);
+            
+            document.getElementById(`stud-name-input-${id}`).disabled = true;
+            document.getElementById(`stud-edit-btn-${id}`).classList.remove('hidden');
+            document.getElementById(`stud-save-btn-${id}`).classList.add('hidden');
+            
+            showToast("تم تعديل اسم الطالب بنجاح", "success");
+            await loadStudentsDirectory();
+            preloadGlobalSearchData();
+        }
+
+        // Secure student code copying using clipboard backup API compatible inside iframes
+        function copyStudentCode(code) {
+            const temp = document.createElement('input');
+            temp.value = code;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast(`تم نسخ الكود ${code} بنجاح`, "info");
+        }
+
+        // Delete Student Action
+        async function deleteStudent(id, name) {
+            askConfirm("حذف الطالب", `هل أنت متأكد من رغبتك في حذف الطالب "${name}"؟ سيتم حذف جميع بياناته وحضوره ودرجاته تماماً.`, async () => {
+                await firebase(`students/${currentClass}/${id}`, 'DELETE');
+                await firebase(`exams/${currentClass}/${id}`, 'DELETE');
+                await firebase(`logs/${currentClass}/${id}`, 'DELETE');
+                
+                showToast(`تم حذف الطالب ${name} بنجاح`, "success");
+                await updateDashboardStats();
+                await loadStudentsDirectory();
+                preloadGlobalSearchData();
+            });
+        }
+
+        // Settings Toggle Panel
+        function toggleSettings() { 
+            document.getElementById('settings-area').classList.toggle('hidden'); 
+        }
+
+        // Create a new school Class
+        async function addClass() {
+            const n = document.getElementById('new-class').value.trim();
+            if (!n) return showToast("يرجى إدخال اسم الصف المراد تأسيسه أولاً", "error");
+            
+            await firebase(`classes/${n}`, 'PUT', { created: Date.now() });
+            showToast(`تم تأسيس الصف الدراسي (${n}) بنجاح`, "success");
+            document.getElementById('new-class').value = "";
+            await init();
+        }
+
+        // Handling Excel Import files
+        document.getElementById('excel-in').addEventListener('change', function(e) {
+            if (!currentClass) return showToast("اختر الفصل أولاً", "error");
+            if (!e.target.files.length) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const book = XLSX.read(data, { type: 'array' });
+                    const rows = XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]]);
+                    
+                    let addedCount = 0;
+                    for (let r of rows) {
+                        const n = r['الأسم'] || r['الاسم'] || r['Name'] || r['name'] || r['اسم الطالب'];
+                        if (n) {
+                            await firebase(`students/${currentClass}`, 'POST', { 
+                                name: n.trim(), 
+                                code: 'T' + Math.floor(Math.random() * 90000 + 10000),
+                                createdAt: Date.now()
+                            });
+                            addedCount++;
+                        }
+                    }
+                    showToast(`تم استيراد وإدراج ${addedCount} طالب بنجاح في هذا الفصل`, "success");
+                    await updateDashboardStats();
+                    await loadStudentsDirectory();
+                    selectClassDirectly(currentClass);
+                    preloadGlobalSearchData();
+                } catch (err) {
+                    showToast("خطأ أثناء قراءة ملف الإكسيل، يرجى التأكد من توافق المسميات", "error");
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        // -------------------------------------------------------------
+        // Global Real-time Search Engine (Fuzzy searching across classes)
+        // -------------------------------------------------------------
+        function handleGlobalSearch(query) {
+            const trimmed = query.trim().toLowerCase();
+            const panel = document.getElementById('search-results-panel');
+            const clearBtn = document.getElementById('clear-search');
+            const welcome = document.getElementById('welcome-msg');
+            const mainActs = document.getElementById('main-actions');
+            const stats = document.getElementById('class-stats');
+            const activeModes = document.querySelectorAll('[id^="mode-"]');
+            
+            if (!trimmed) {
+                clearGlobalSearch();
+                return;
+            }
+
+            clearBtn.classList.remove('hidden');
+            panel.classList.remove('hidden');
+            
+            // Temporary hide normal flow
+            welcome.classList.add('hidden');
+            mainActs.classList.add('hidden');
+            stats.classList.add('hidden');
+            activeModes.forEach(el => el.classList.add('hidden'));
+
+            if (!cachedAllData || !cachedAllData.students) {
+                document.getElementById('search-results-grid').innerHTML = `
+                    <div class="col-span-full text-center py-10 bg-white rounded-3xl border text-slate-400 font-bold">
+                        جاري تحميل وتحديث فهرس البحث المباشر، يرجى الانتظار ثانية...
+                    </div>`;
+                return;
+            }
+
+            const results = [];
+            
+            // Loop through cached classes & students
+            Object.entries(cachedAllData.students).forEach(([className, classStudents]) => {
+                if (classStudents) {
+                    Object.entries(classStudents).forEach(([sid, s]) => {
+                        const nameMatches = s.name && s.name.toLowerCase().includes(trimmed);
+                        const codeMatches = s.code && s.code.toLowerCase().includes(trimmed);
+                        
+                        if (nameMatches || codeMatches) {
+                            results.push({
+                                id: sid,
+                                name: s.name,
+                                code: s.code,
+                                className: className,
+                                lastStatus: s.lastStatus,
+                                lastGrade: s.lastGrade
+                            });
+                        }
+                    });
+                }
+            });
+
+            drawSearchResults(results);
+        }
+
+        // Draw Search Results Cards dynamically
+        async function drawSearchResults(results) {
+            const grid = document.getElementById('search-results-grid');
+            grid.innerHTML = "";
+
+            if (results.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-[2rem] border border-slate-100 shadow-sm text-slate-400">
+                        <div class="text-4xl mb-2">🔍</div>
+                        <p class="font-bold text-sm">عذراً، لم نجد أي طالب يطابق معايير البحث المدخلة</p>
+                    </div>`;
+                return;
+            }
+
+            for (let student of results) {
+                // Read student logs (Attendance & Exams) from local cache database
+                let attendanceCount = 0;
+                let presentCount = 0;
+                
+                const sLogs = cachedAllData.logs?.[student.className]?.[student.id];
+                if (sLogs) {
+                    const logsArr = Object.values(sLogs);
+                    attendanceCount = logsArr.length;
+                    presentCount = logsArr.filter(l => l.status === 'حاضر').length;
+                }
+
+                const attendancePercent = attendanceCount > 0 ? Math.round((presentCount / attendanceCount) * 100) : null;
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-md flex flex-col justify-between gap-4 transition-all hover:shadow-xl";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <span class="bg-indigo-50 text-indigo-700 text-[10px] font-extrabold px-2.5 py-1 rounded-xl block w-fit mb-1.5">${student.className}</span>
+                                <h3 class="font-black text-slate-800 text-base md:text-lg leading-tight">${student.name}</h3>
+                            </div>
+                            <span class="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl border">${student.code}</span>
+                        </div>
+                        
+                        <!-- Attendance Stats Sub-card -->
+                        <div class="grid grid-cols-2 gap-2 mt-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-bold block">إجمالي أيام الحضور الفعلي</span>
+                                <span class="font-extrabold text-sm text-emerald-600">${presentCount} من أصل ${attendanceCount} ${attendanceCount > 0 ? 'أيام رصد' : 'أيام'}</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-bold block">نسبة الحضور الموثقة</span>
+                                <span class="font-extrabold text-sm text-blue-600">${attendancePercent !== null ? `${attendancePercent}%` : 'لا سجل غياب بعد'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Latest Grade Card -->
+                        <div class="mt-3 flex justify-between items-center text-xs bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 font-bold">آخر اختبار تم رصده:</span>
+                            <span class="font-black text-amber-600">${student.lastGrade || 'لا توجد درجات مضافة'}</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-2 pt-2 border-t border-slate-100 mt-2">
+                        <button onclick="viewStudentGradesFromSearch('${student.id}', '${student.className}', '${student.name}')" class="flex-1 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs py-2.5 rounded-xl transition-all">
+                            📊 سجل الدرجات الكامل
+                        </button>
+                        <button onclick="copyStudentCode('${student.code}')" class="bg-slate-50 hover:bg-slate-100 text-slate-500 p-2.5 rounded-xl transition-all" title="نسخ كود الطالب">
+                            📋
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+
+        // Close search and go back to current state
+        function clearGlobalSearch() {
+            document.getElementById('global-search').value = "";
+            document.getElementById('clear-search').classList.add('hidden');
+            document.getElementById('search-results-panel').classList.add('hidden');
+            
+            // Restore flow
+            if (currentClass) {
+                document.getElementById('main-actions').classList.remove('hidden');
+                document.getElementById('class-stats').classList.remove('hidden');
+            } else {
+                document.getElementById('welcome-msg').classList.remove('hidden');
+            }
+        }
+
+        // View Grades Modal from the search interface directly
+        async function viewStudentGradesFromSearch(sid, className, name) {
+            document.getElementById('modal-student-name').innerText = `${name} (صف ${className})`;
+            const exams = await firebase(`exams/${className}/${sid}`);
+            const content = document.getElementById('modal-content');
+            content.innerHTML = "";
+            
+            if (!exams) {
+                content.innerHTML = `
+                    <div class="text-center py-16 text-slate-400">
+                        <div class="text-4xl mb-3">📭</div>
+                        <p class="text-sm font-bold">لا توجد درجات مسجلة لهذا الطالب في الوقت الحالي</p>
+                    </div>`;
+            } else {
+                Object.entries(exams).forEach(([eid, e]) => {
+                    const row = document.createElement('div');
+                    row.className = "bg-slate-50 p-4 rounded-2xl border border-slate-200/50 flex justify-between items-center gap-3";
+                    row.innerHTML = `
+                        <div class="flex-1">
+                            <div class="text-[10px] text-slate-400 font-bold mb-1">${e.date}</div>
+                            <div class="font-bold text-slate-700 text-sm">${e.title}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 flex items-center gap-1.5">
+                                <input id="inp-${eid}" type="number" value="${e.score}" class="w-12 text-center font-bold text-blue-600 bg-transparent outline-none" disabled>
+                                <span class="text-slate-300">/</span> 
+                                <span class="text-slate-400 font-bold text-xs">${e.total}</span>
+                            </div>
+                            <button id="btn-edit-${eid}" onclick="enableEditDirect('${eid}', '${className}', '${sid}', ${e.total})" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-white rounded-lg transition-all" title="تعديل">✏️</button>
+                            <button id="btn-save-${eid}" onclick="saveEditDirect('${sid}', '${eid}', ${e.total}, '${className}')" class="hidden p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all" title="حفظ">✔️</button>
+                        </div>
+                    `;
+                    content.appendChild(row);
+                });
+            }
+            document.getElementById('grades-modal').classList.remove('hidden');
+        }
+
+        // Direct editing function backups (for search scope editing)
+        function enableEditDirect(eid, className, sid, total) {
+            const inp = document.getElementById(`inp-${eid}`);
+            inp.disabled = false;
+            inp.focus();
+            inp.select();
+            document.getElementById(`btn-edit-${eid}`).classList.add('hidden');
+            
+            // Override save button action specifically for global scope changes
+            const saveBtn = document.getElementById(`btn-save-${eid}`);
+            saveBtn.classList.remove('hidden');
+        }
+
+        async function saveEditDirect(sid, eid, total, targetClass) {
+            const newScore = parseFloat(document.getElementById(`inp-${eid}`).value || 0);
+            
+            await firebase(`exams/${targetClass}/${sid}/${eid}/score`, 'PUT', newScore);
+            await firebase(`students/${targetClass}/${sid}/lastGrade`, 'PUT', `${newScore} / ${total}`);
+            
+            document.getElementById(`inp-${eid}`).disabled = true;
+            document.getElementById(`btn-edit-${eid}`).classList.remove('hidden');
+            document.getElementById(`btn-save-${eid}`).classList.add('hidden');
+            
+            showToast("تم تحديث درجة الطالب بنجاح", "success");
+            preloadGlobalSearchData();
+        }
+
+        // Initialize App on Window Load
+        window.onload = init;
+    </script>
+</body>
+</html>
 
             
 
